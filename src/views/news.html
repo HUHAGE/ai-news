@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 新闻展示</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="text-center my-4">
+      <h1 class="display-4">AI 新闻</h1>
+      <p class="lead">展示爬取的最新 AI 相关新闻</p>
+      <div class="d-flex justify-content-center mb-4">
+        <a href="/" class="btn btn-outline-primary me-2">
+          <i class="bi bi-house-door"></i> 返回首页
+        </a>
+        <button id="refresh-btn" class="btn btn-primary">
+          <i class="bi bi-arrow-clockwise"></i> 刷新数据
+        </button>
+      </div>
+    </header>
+
+    <div class="row mb-4">
+      <div class="col-md-6 offset-md-3">
+        <div class="input-group">
+          <input type="text" id="search-input" class="form-control" placeholder="搜索标题或内容...">
+          <button class="btn btn-outline-secondary" id="search-btn">
+            <i class="bi bi-search"></i> 搜索
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row mb-4">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h2 class="h4 mb-0">最新爬取结果</h2>
+            <div>
+              <span id="news-count" class="badge bg-light text-dark me-2">0 条</span>
+              <div class="dropdown d-inline-block">
+                <button class="btn btn-sm btn-light dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                  排序
+                </button>
+                <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+                  <li><a class="dropdown-item sort-option" data-sort="date-desc" href="#">日期 (新到旧)</a></li>
+                  <li><a class="dropdown-item sort-option" data-sort="date-asc" href="#">日期 (旧到新)</a></li>
+                  <li><a class="dropdown-item sort-option" data-sort="title-asc" href="#">标题 (A-Z)</a></li>
+                  <li><a class="dropdown-item sort-option" data-sort="title-desc" href="#">标题 (Z-A)</a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div id="loading" class="text-center py-5">
+              <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">加载中...</span>
+              </div>
+              <p class="mt-2">正在加载新闻数据...</p>
+            </div>
+            <div id="error-message" class="alert alert-danger m-3" style="display: none;"></div>
+            <div id="no-data-message" class="alert alert-warning m-3" style="display: none;">
+              <p>暂无新闻数据，请先<a href="/">爬取数据</a>。</p>
+            </div>
+            <div id="news-list" class="list-group list-group-flush"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 新闻详情模态框 -->
+  <div class="modal fade" id="newsModal" tabindex="-1" aria-labelledby="newsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="newsModalLabel">新闻详情</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <h2 id="modal-title" class="h4 mb-3"></h2>
+          <p id="modal-meta" class="text-muted small"></p>
+          <div class="mb-4">
+            <h6>摘要</h6>
+            <p id="modal-summary" class="border-start border-primary ps-3"></p>
+          </div>
+          <div class="text-end">
+            <a id="modal-url" href="#" target="_blank" class="btn btn-primary">
+              <i class="bi bi-box-arrow-up-right"></i> 查看原文
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 获取DOM元素
+      const newsList = document.getElementById('news-list');
+      const newsCount = document.getElementById('news-count');
+      const loading = document.getElementById('loading');
+      const errorMessage = document.getElementById('error-message');
+      const noDataMessage = document.getElementById('no-data-message');
+      const refreshBtn = document.getElementById('refresh-btn');
+      const searchInput = document.getElementById('search-input');
+      const searchBtn = document.getElementById('search-btn');
+      
+      // 模态框元素
+      const newsModal = new bootstrap.Modal(document.getElementById('newsModal'));
+      const modalTitle = document.getElementById('modal-title');
+      const modalMeta = document.getElementById('modal-meta');
+      const modalSummary = document.getElementById('modal-summary');
+      const modalUrl = document.getElementById('modal-url');
+      
+      // 存储原始数据
+      let newsData = [];
+      let currentSort = 'date-desc';
+      let searchQuery = '';
+
+      // 加载新闻数据
+      async function loadNewsData() {
+        try {
+          loading.style.display = 'block';
+          errorMessage.style.display = 'none';
+          noDataMessage.style.display = 'none';
+          newsList.innerHTML = '';
+          
+          const response = await fetch('/api/news');
+          const result = await response.json();
+          
+          if (result.success) {
+            if (result.data && result.data.length > 0) {
+              newsData = result.data;
+              displayNews(newsData);
+            } else {
+              noDataMessage.style.display = 'block';
+            }
+          } else {
+            throw new Error(result.message || '获取数据失败');
+          }
+        } catch (error) {
+          errorMessage.textContent = '加载新闻数据失败: ' + error.message;
+          errorMessage.style.display = 'block';
+        } finally {
+          loading.style.display = 'none';
+        }
+      }
+
+      // 显示新闻列表
+      function displayNews(data) {
+        // 按当前排序方式排序
+        const sortedData = sortNews(data, currentSort);
+        
+        // 清空列表
+        newsList.innerHTML = '';
+        
+        // 更新计数
+        newsCount.textContent = `${sortedData.length} 条`;
+        
+        // 显示新闻项
+        sortedData.forEach((item, index) => {
+          const newsItem = document.createElement('div');
+          newsItem.className = 'list-group-item list-group-item-action';
+          newsItem.innerHTML = `
+            <div class="d-flex w-100 justify-content-between align-items-start">
+              <h5 class="mb-1">${item.title}</h5>
+              <span class="badge bg-${getSourceBadgeColor(item.source)}">${item.source}</span>
+            </div>
+            <p class="mb-1 text-truncate">${item.summary || '无摘要'}</p>
+            <div class="d-flex justify-content-between align-items-center">
+              <small class="text-muted">
+                ${item.date ? `<i class="bi bi-calendar"></i> ${item.date}` : ''}
+                ${item.author ? `<i class="bi bi-person ms-2"></i> ${item.author}` : ''}
+              </small>
+              <button class="btn btn-sm btn-primary view-details" data-index="${index}">
+                <i class="bi bi-eye"></i> 查看详情
+              </button>
+            </div>
+          `;
+          
+          newsList.appendChild(newsItem);
+        });
+        
+        // 添加事件监听器
+        document.querySelectorAll('.view-details').forEach(button => {
+          button.addEventListener('click', function() {
+            const index = parseInt(this.getAttribute('data-index'));
+            const newsItem = sortedData[index];
+            showNewsDetails(newsItem);
+          });
+        });
+      }
+
+      // 显示新闻详情
+      function showNewsDetails(newsItem) {
+        modalTitle.textContent = newsItem.title;
+        modalMeta.innerHTML = `
+          ${newsItem.date ? `<i class="bi bi-calendar"></i> ${newsItem.date} · ` : ''}
+          ${newsItem.author ? `<i class="bi bi-person"></i> ${newsItem.author} · ` : ''}
+          <i class="bi bi-globe"></i> ${newsItem.source}
+        `;
+        modalSummary.textContent = newsItem.summary || '无摘要';
+        modalUrl.href = newsItem.url || '#';
+        
+        if (!newsItem.url) {
+          modalUrl.style.display = 'none';
+        } else {
+          modalUrl.style.display = 'inline-block';
+        }
+        
+        newsModal.show();
+      }
+
+      // 按指定方式排序新闻
+      function sortNews(data, sortOption) {
+        const sortedData = [...data];
+        
+        switch (sortOption) {
+          case 'date-desc':
+            sortedData.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+            break;
+          case 'date-asc':
+            sortedData.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+            break;
+          case 'title-asc':
+            sortedData.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+            break;
+          case 'title-desc':
+            sortedData.sort((a, b) => (b.title || '').localeCompare(a.title || ''));
+            break;
+          default:
+            break;
+        }
+        
+        return sortedData;
+      }
+
+      // 搜索新闻
+      function searchNews(query) {
+        if (!query.trim()) {
+          displayNews(newsData);
+          return;
+        }
+        
+        const normalizedQuery = query.toLowerCase().trim();
+        const filteredData = newsData.filter(item => {
+          return (
+            (item.title && item.title.toLowerCase().includes(normalizedQuery)) ||
+            (item.summary && item.summary.toLowerCase().includes(normalizedQuery)) ||
+            (item.author && item.author.toLowerCase().includes(normalizedQuery))
+          );
+        });
+        
+        displayNews(filteredData);
+      }
+
+      // 根据来源获取徽章颜色
+      function getSourceBadgeColor(source) {
+        const colors = ['primary', 'success', 'danger', 'warning', 'info'];
+        let hash = 0;
+        
+        if (!source) return colors[0];
+        
+        for (let i = 0; i < source.length; i++) {
+          hash = source.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        
+        return colors[Math.abs(hash) % colors.length];
+      }
+
+      // 事件监听器
+      refreshBtn.addEventListener('click', loadNewsData);
+      
+      searchBtn.addEventListener('click', function() {
+        searchQuery = searchInput.value;
+        searchNews(searchQuery);
+      });
+      
+      searchInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+          searchQuery = searchInput.value;
+          searchNews(searchQuery);
+        }
+      });
+      
+      document.querySelectorAll('.sort-option').forEach(option => {
+        option.addEventListener('click', function(e) {
+          e.preventDefault();
+          currentSort = this.getAttribute('data-sort');
+          document.getElementById('sortDropdown').textContent = this.textContent;
+          displayNews(newsData);
+        });
+      });
+
+      // 初始加载
+      loadNewsData();
+    });
+  </script>
+</body>
+</html> 

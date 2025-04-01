@@ -1,0 +1,37 @@
+# 依赖目录
+node_modules/
+
+# 数据目录
+data/*.json
+data/*.csv
+data/*.txt
+
+# 日志文件
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 运行时数据
+.pids
+*.pid
+*.seed
+*.pid.lock
+
+# 目录以确保环境隐私
+.env
+.env.test
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# 编辑器目录和文件
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 操作系统文件
+.DS_Store
+Thumbs.db 

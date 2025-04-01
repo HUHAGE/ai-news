@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI 新闻爬虫</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div class="container">
+    <header class="text-center my-5">
+      <h1 class="display-4">AI 新闻爬虫</h1>
+      <p class="lead">从多个网站爬取 AI 相关的最新新闻</p>
+    </header>
+
+    <div class="row justify-content-center">
+      <div class="col-md-8">
+        <div class="card shadow-lg">
+          <div class="card-header bg-primary text-white">
+            <h2 class="h4 mb-0">爬虫控制面板</h2>
+          </div>
+          <div class="card-body">
+            <div class="mb-4">
+              <h3 class="h5">已配置的网站</h3>
+              <div id="sites-list" class="list-group mb-3">
+                <div class="text-center">
+                  <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <h3 class="h5">数据保存格式</h3>
+              <div class="btn-group" role="group">
+                <input type="radio" class="btn-check" name="format" id="format-json" value="json" checked>
+                <label class="btn btn-outline-primary" for="format-json">JSON</label>
+                
+                <input type="radio" class="btn-check" name="format" id="format-csv" value="csv">
+                <label class="btn btn-outline-primary" for="format-csv">CSV</label>
+                
+                <input type="radio" class="btn-check" name="format" id="format-txt" value="txt">
+                <label class="btn btn-outline-primary" for="format-txt">TXT</label>
+              </div>
+            </div>
+
+            <div class="d-grid gap-2">
+              <button id="start-crawl" class="btn btn-primary btn-lg">
+                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                开始获取
+              </button>
+              <a id="view-news" href="/news" class="btn btn-outline-secondary btn-lg" style="display: none;">查看已爬取的新闻</a>
+            </div>
+          </div>
+        </div>
+
+        <div id="result-card" class="card mt-4 d-none">
+          <div class="card-header bg-success text-white">
+            <h2 class="h4 mb-0">爬取结果</h2>
+          </div>
+          <div class="card-body">
+            <div id="result-content"></div>
+            <div class="d-grid gap-2 mt-3">
+              <a href="/news" class="btn btn-success">查看爬取的新闻</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // 获取DOM元素
+      const sitesListEl = document.getElementById('sites-list');
+      const startCrawlBtn = document.getElementById('start-crawl');
+      const spinner = startCrawlBtn.querySelector('.spinner-border');
+      const resultCard = document.getElementById('result-card');
+      const resultContent = document.getElementById('result-content');
+      const viewNewsBtn = document.getElementById('view-news');
+
+      // 加载网站列表
+      async function loadSites() {
+        try {
+          const response = await fetch('/api/sites');
+          const data = await response.json();
+          
+          if (data.success) {
+            sitesListEl.innerHTML = '';
+            
+            if (data.sites.length === 0) {
+              sitesListEl.innerHTML = '<div class="alert alert-warning">没有配置任何网站，请编辑 config/sites.json 文件</div>';
+              return;
+            }
+            
+            data.sites.forEach(site => {
+              const siteItem = document.createElement('a');
+              siteItem.href = site.url;
+              siteItem.target = '_blank';
+              siteItem.className = 'list-group-item list-group-item-action';
+              siteItem.innerHTML = `
+                <div class="d-flex w-100 justify-content-between">
+                  <h6 class="mb-1">${site.name}</h6>
+                  <small class="text-muted">点击访问</small>
+                </div>
+                <small class="text-truncate d-inline-block" style="max-width: 100%;">${site.url}</small>
+              `;
+              sitesListEl.appendChild(siteItem);
+            });
+          } else {
+            sitesListEl.innerHTML = '<div class="alert alert-danger">加载网站列表失败</div>';
+          }
+        } catch (error) {
+          sitesListEl.innerHTML = '<div class="alert alert-danger">加载网站列表失败: ' + error.message + '</div>';
+        }
+      }
+
+      // 检查是否有现有数据
+      async function checkExistingData() {
+        try {
+          const response = await fetch('/api/news');
+          const data = await response.json();
+          
+          if (data.success && data.filePath) {
+            viewNewsBtn.style.display = 'block';
+          }
+        } catch (error) {
+          console.error('检查现有数据失败:', error);
+        }
+      }
+
+      // 开始爬取
+      async function startCrawl() {
+        try {
+          // 禁用按钮并显示加载动画
+          startCrawlBtn.disabled = true;
+          spinner.classList.remove('d-none');
+          startCrawlBtn.innerText = ' 爬取中，请稍候...';
+          startCrawlBtn.prepend(spinner);
+          
+          // 获取选中的格式
+          const formatEl = document.querySelector('input[name="format"]:checked');
+          const format = formatEl ? formatEl.value : 'json';
+          
+          // 发送爬取请求
+          const response = await fetch('/api/crawl', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ format })
+          });
+          
+          const data = await response.json();
+          
+          // 显示结果
+          if (data.success) {
+            resultContent.innerHTML = `
+              <div class="alert alert-success">
+                <h5>爬取成功!</h5>
+                <p>共爬取到 <strong>${data.count}</strong> 条 AI 相关新闻</p>
+                <p>数据已保存为 <strong>${data.format.toUpperCase()}</strong> 格式</p>
+              </div>
+            `;
+          } else {
+            resultContent.innerHTML = `
+              <div class="alert alert-danger">
+                <h5>爬取失败!</h5>
+                <p>${data.message}</p>
+              </div>
+            `;
+          }
+          
+          resultCard.classList.remove('d-none');
+          
+          // 自动跳转到新闻页面
+          setTimeout(() => {
+            window.location.href = '/news';
+          }, 2000);
+        } catch (error) {
+          resultContent.innerHTML = `
+            <div class="alert alert-danger">
+              <h5>爬取过程中发生错误!</h5>
+              <p>${error.message}</p>
+            </div>
+          `;
+          resultCard.classList.remove('d-none');
+        } finally {
+          // 恢复按钮状态
+          startCrawlBtn.disabled = false;
+          spinner.classList.add('d-none');
+          startCrawlBtn.innerText = '开始获取';
+        }
+      }
+
+      // 注册事件监听器
+      startCrawlBtn.addEventListener('click', startCrawl);
+
+      // 初始化
+      loadSites();
+      checkExistingData();
+    });
+  </script>
+</body>
+</html> 
