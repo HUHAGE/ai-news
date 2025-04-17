@@ -1,80 +1,26 @@
 [
   {
     "name": "机器之心",
-    "url": "https://www.jiqizhixin.com/",
-    "selectors": {
-      "container": "div.article-item",
-      "title": "a.article-item__title",
-      "summary": "p.article-item__summary",
-      "date": "div.article-item__date",
-      "author": "div.article-item__author",
-      "source": "div.article-item__source",
-      "link": "a.article-item__title"
-    }
+    "url": "https://www.jiqizhixin.com/"
   },
   {
-    "name": "腾讯AI实验室",
-    "url": "https://ai.tencent.com/ailab/zh/news/",
-    "selectors": {
-      "container": "div.card-wrap",
-      "title": "div.card-title",
-      "summary": "div.card-desc",
-      "date": "div.card-time",
-      "author": "",
-      "source": "",
-      "link": "a.card-item"
-    }
+    "name": "36氪AI频道",
+    "url": "https://www.36kr.com/information/AI/"
   },
   {
-    "name": "百度AI",
-    "url": "https://ai.baidu.com/tech/nlp",
-    "selectors": {
-      "container": "div.tech-panel",
-      "title": "div.tech-title",
-      "summary": "div.tech-desc",
-      "date": "",
-      "author": "",
-      "source": "",
-      "link": "a.tech-item"
-    }
+    "name": "人工智能实验室",
+    "url": "https://www.ailab.cn/"
   },
   {
-    "name": "CSDN AI",
-    "url": "https://www.csdn.net/tags/MtjaQg5sMDY0NC1ibG9n.html",
-    "selectors": {
-      "container": "div.column-card-box",
-      "title": "h3.column-card-title a",
-      "summary": "p.column-card-brief",
-      "date": "span.column-card-date",
-      "author": "a.column-card-author",
-      "source": "",
-      "link": "h3.column-card-title a"
-    }
+    "name": "AIBase",
+    "url": "https://www.aibase.com/zh/news"
   },
   {
-    "name": "InfoQ AI",
-    "url": "https://www.infoq.cn/topic/AI",
-    "selectors": {
-      "container": "div.article-item",
-      "title": "div.article-item__title a",
-      "summary": "div.article-item__desc",
-      "date": "div.article-item__date",
-      "author": "div.article-item__author",
-      "source": "",
-      "link": "div.article-item__title a"
-    }
+    "name": "aicpb",
+    "url": "https://www.aicpb.com/news"
   },
   {
-    "name": "量子位",
-    "url": "https://www.qbitai.com/",
-    "selectors": {
-      "container": "div.list-item",
-      "title": "h2.title a",
-      "summary": "div.summary",
-      "date": "span.time",
-      "author": "span.author",
-      "source": "",
-      "link": "h2.title a"
-    }
+    "name": "aihub",
+    "url": "https://www.aihub.cn/en/news/"
   }
 ] 
